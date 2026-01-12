@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
+import { useSubscription } from '../contexts/SubscriptionContext';
 
 const ResumeUpload = ({ files, onFilesChange, onProcess, loading, onBack }) => {
+  const { currentPlan, resumesProcessedThisMonth } = useSubscription();
+  const remainingResumes = currentPlan.resumeLimit === Infinity 
+    ? 'Unlimited' 
+    : Math.max(0, currentPlan.resumeLimit - resumesProcessedThisMonth);
   const [dragActive, setDragActive] = useState(false);
 
   const handleDrag = (e) => {
@@ -68,6 +73,10 @@ const ResumeUpload = ({ files, onFilesChange, onProcess, loading, onBack }) => {
             <div className="stat-label">Resumes Uploaded</div>
           </div>
           <div className="stat-card">
+            <div className="stat-value">{remainingResumes}</div>
+            <div className="stat-label">Remaining This Month</div>
+          </div>
+          <div className="stat-card">
             <div className="stat-value">{(files.reduce((acc, file) => acc + file.size, 0) / 1024 / 1024).toFixed(2)}MB</div>
             <div className="stat-label">Total Size</div>
           </div>
@@ -130,6 +139,18 @@ const ResumeUpload = ({ files, onFilesChange, onProcess, loading, onBack }) => {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {currentPlan.resumeLimit !== Infinity && files.length > remainingResumes && (
+          <div className="alert alert-warning" style={{ marginBottom: 16 }}>
+            <div className="alert-icon">⚠️</div>
+            <div className="alert-content">
+              <div className="alert-title">Limit Exceeded</div>
+              <div className="alert-message">
+                You only have {remainingResumes} resume processing{remainingResumes !== 1 ? 's' : ''} remaining this month. Please remove {files.length - remainingResumes} file{files.length - remainingResumes !== 1 ? 's' : ''} or upgrade to continue.
+              </div>
+            </div>
           </div>
         )}
 

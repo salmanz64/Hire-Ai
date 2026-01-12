@@ -1,13 +1,67 @@
 """
-Database models for HireAI SaaS platform.
+Database configuration and models for HireAI SaaS platform using Neon DB (PostgreSQL).
 """
+import os
 from sqlalchemy import Column, String, DateTime, Integer, ForeignKey, Boolean, Float, Text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import uuid
 
+from ..config.settings import settings
+
+# Database URL from settings (Neon DB - required)
+DATABASE_URL = settings.database_url
+
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is required. Please set your Neon DB connection string.")
+
+# Ensure it's using asyncpg driver and remove incompatible parameters
+if "postgresql" in DATABASE_URL and "+asyncpg" not in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+
+# Remove sslmode and channel_binding parameters (not supported by asyncpg)
+if "?" in DATABASE_URL:
+    base_url, params = DATABASE_URL.split("?", 1)
+    param_list = [p for p in params.split("&") if not p.startswith("sslmode") and not p.startswith("channel_binding")]
+    if param_list:
+        DATABASE_URL = base_url + "?" + "&".join(param_list)
+    else:
+        DATABASE_URL = base_url
+
+# Create async engine for Neon DB
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20
+)
+
+# Create async session factory
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False
+)
+
 Base = declarative_base()
+
+
+async def get_db():
+    """Database dependency for FastAPI routes."""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
 
 def generate_uuid():
@@ -33,6 +87,7 @@ class User(Base):
     subscriptions = relationship("Subscription", back_populates="user", cascade="all, delete-orphan")
     usage_records = relationship("Usage", back_populates="user", cascade="all, delete-orphan")
     invoices = relationship("Invoice", back_populates="user", cascade="all, delete-orphan")
+    jobs = relationship("Job", back_populates="user", cascade="all, delete-orphan")
 
 
 class Subscription(Base):
@@ -104,6 +159,7 @@ class Job(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
+    user = relationship("User", back_populates="jobs")
     candidates = relationship("Candidate", back_populates="job", cascade="all, delete-orphan")
 
 

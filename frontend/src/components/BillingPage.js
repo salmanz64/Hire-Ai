@@ -1,21 +1,59 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSubscription } from '../contexts/SubscriptionContext';
+import api from '../services/api';
 
 const BillingPage = () => {
   const navigate = useNavigate();
-  const [selectedPlan, setSelectedPlan] = useState('professional');
+  const [searchParams] = useSearchParams();
+  const { currentPlan, resumesProcessedThisMonth, activeJobCount, totalCandidates, planId, upgradePlan } = useSubscription();
+  const [selectedPlan, setSelectedPlan] = useState(planId);
   const [billingCycle, setBillingCycle] = useState('monthly');
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [showCancelledMessage, setShowCancelledMessage] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const currentPlan = {
-    name: 'Starter',
-    price: '$49',
-    period: '/month',
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const cancelled = searchParams.get('cancelled');
+    
+    if (success === 'true') {
+      setShowSuccessMessage(true);
+      const plan = searchParams.get('plan');
+      if (plan && plan !== 'free' && upgradePlan) {
+        upgradePlan(plan);
+        setSelectedPlan(plan);
+      }
+      setTimeout(() => {
+        setShowSuccessMessage(false);
+        window.history.replaceState({}, '', '/billing');
+      }, 5000);
+    }
+    
+    if (cancelled === 'true') {
+      setShowCancelledMessage(true);
+      setTimeout(() => {
+        setShowCancelledMessage(false);
+        window.history.replaceState({}, '', '/billing');
+      }, 5000);
+    }
+  }, [searchParams, upgradePlan]);
+
+  const planDetails = {
+    free: { name: 'Free', price: '$0', period: '/month' },
+    starter: { name: 'Starter', price: '$49', period: '/month' },
+    professional: { name: 'Professional', price: '$149', period: '/month' }
+  };
+
+  const currentPlanInfo = {
+    name: currentPlan.name,
+    price: planDetails[planId]?.price || '$0',
+    period: planDetails[planId]?.period || '/month',
     status: 'Active',
-    nextBilling: 'January 15, 2024',
     features: [
-      { name: 'Resumes Processed', used: 45, limit: 100 },
-      { name: 'Active Job Postings', used: 3, limit: 5 },
-      { name: 'Team Members', used: 2, limit: 3 }
+      { name: 'Resumes Processed', used: resumesProcessedThisMonth, limit: currentPlan.resumeLimit === Infinity ? 'Unlimited' : currentPlan.resumeLimit },
+      { name: 'Active Job Postings', used: activeJobCount, limit: currentPlan.jobLimit === Infinity ? 'Unlimited' : currentPlan.jobLimit },
+      { name: 'Total Candidates', used: totalCandidates, limit: 'N/A' }
     ]
   };
 
@@ -105,12 +143,37 @@ const BillingPage = () => {
     }
   ];
 
-  const handlePlanChange = (planId) => {
-    setSelectedPlan(planId);
+  const handlePlanChange = (newPlanId) => {
+    setSelectedPlan(newPlanId);
   };
 
-  const handleUpgrade = () => {
-    alert(`Upgraded to ${plans.find(p => p.id === selectedPlan).name} plan!`);
+  const handleUpgrade = async () => {
+    setLoading(true);
+    
+    try {
+      console.log('Creating checkout session for:', selectedPlan, billingCycle);
+      
+      const response = await api.post('/billing/subscribe', {
+        plan_id: selectedPlan,
+        billing_cycle: billingCycle
+      });
+      
+      console.log('Checkout response:', response.data);
+      
+      if (response.data.checkout_url) {
+        window.location.href = response.data.checkout_url;
+      } else {
+        throw new Error('No checkout URL returned');
+      }
+    } catch (error) {
+      console.error('Upgrade error:', error);
+      setLoading(false);
+      
+      const errorMessage = error.response?.data?.detail || 
+                        error.message || 
+                        'Failed to create checkout session. Please try again.';
+      alert(`Error: ${errorMessage}`);
+    }
   };
 
   const handleUpdatePayment = () => {
@@ -135,8 +198,60 @@ const BillingPage = () => {
 
   return (
     <div className="billing-page">
+      {showSuccessMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 1000,
+          background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+          color: '#fff',
+          padding: '16px 24px',
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 24, height: 24 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Payment Successful!</div>
+            <div style={{ fontSize: 14, opacity: 0.9 }}>Your plan has been upgraded to {plans.find(p => p.id === selectedPlan)?.name}</div>
+          </div>
+        </div>
+      )}
+      
+      {showCancelledMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          zIndex: 1000,
+          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+          color: '#fff',
+          padding: '16px 24px',
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 24, height: 24 }}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>Payment Cancelled</div>
+            <div style={{ fontSize: 14, opacity: 0.9 }}>You can try upgrading anytime</div>
+          </div>
+        </div>
+      )}
+      
       <div className="billing-header">
-        <button className="button-ghost button-lg" onClick={() => navigate('/app')}>
+        <button className="button-ghost button-lg" onClick={() => navigate('/app/dashboard')}>
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 20, height: 20, marginRight: 8 }}>
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
@@ -152,30 +267,27 @@ const BillingPage = () => {
             <div>
               <h2 className="card-title">Current Plan</h2>
               <p className="page-subtitle" style={{ margin: 0 }}>
-                You're on the {currentPlan.name} plan
+                You're on {currentPlanInfo.name} plan
               </p>
             </div>
             <div className="badge badge-success">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 14, height: 14, marginRight: 6 }}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              {currentPlan.status}
+              {currentPlanInfo.status}
             </div>
           </div>
 
           <div className="current-plan-details">
             <div className="plan-price-large">
-              {currentPlan.price}
-              <span className="plan-period-large">{currentPlan.period}</span>
-            </div>
-            <div className="plan-next-billing">
-              Next billing date: <strong>{currentPlan.nextBilling}</strong>
+              {currentPlanInfo.price}
+              <span className="plan-period-large">{currentPlanInfo.period}</span>
             </div>
           </div>
 
           <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>Usage This Month</h3>
           <div className="usage-grid">
-            {currentPlan.features.map((feature, index) => {
+            {currentPlanInfo.features.map((feature, index) => {
               const { percentage, text } = formatUsage(feature.used, feature.limit);
               return (
                 <div key={index} className="usage-card">
@@ -271,9 +383,20 @@ const BillingPage = () => {
             <button 
               className="button-primary button-lg" 
               onClick={handleUpgrade}
+              disabled={loading}
               style={{ flex: 1 }}
             >
-              Upgrade to {plans.find(p => p.id === selectedPlan).name}
+              {loading ? (
+                <>
+                  <svg className="spinner" style={{ width: 20, height: 20, margin: 0 }} fill="none" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
+                    <path fill="currentColor" className="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Loading...
+                </>
+              ) : (
+                `Upgrade to ${plans.find(p => p.id === selectedPlan).name}`
+              )}
             </button>
           </div>
         </div>
@@ -281,7 +404,12 @@ const BillingPage = () => {
         {/* Payment Methods Section */}
         <div className="card">
           <div className="card-header">
-            <h2 className="card-title">Payment Methods</h2>
+            <div>
+              <h2 className="card-title">Payment Methods</h2>
+              <p className="page-subtitle" style={{ margin: 0, fontSize: 14, color: 'var(--gray-600)' }}>
+                Secure payments powered by Stripe
+              </p>
+            </div>
             <button className="button-outline button-lg">
               <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ width: 18, height: 18, marginRight: 8 }}>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -290,25 +418,89 @@ const BillingPage = () => {
             </button>
           </div>
 
-          <div className="payment-methods">
-            {paymentMethods.map((method, index) => (
-              <div key={index} className="payment-method-card">
-                <div className="payment-method-icon">
-                  {method.brand === 'Visa' && (
-                    <span style={{ fontSize: 24, fontWeight: 700, color: '#1a1f71' }}>VISA</span>
-                  )}
-                </div>
-                <div className="payment-method-details">
-                  <div className="payment-method-brand">{method.brand}</div>
-                  <div className="payment-method-number">•••• {method.last4}</div>
-                  <div className="payment-method-expiry">Expires {method.expiry}</div>
-                </div>
-                <div className="payment-method-actions">
-                  {method.default && <div className="badge badge-info">Default</div>}
-                  <button className="button-ghost">Edit</button>
+          <div style={{ padding: '24px', background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', borderRadius: 8, marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ fontSize: 40 }}>
+                <svg viewBox="0 0 60 40" style={{ height: 40 }}>
+                  <defs>
+                    <linearGradient id="stripeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                      <stop offset="0%" style={{ stopColor: '#635BFF', stopOpacity: 1 }} />
+                      <stop offset="100%" style={{ stopColor: '#8B85FF', stopOpacity: 1 }} />
+                    </linearGradient>
+                  </defs>
+                  <text x="5" y="30" style={{ fill: 'url(#stripeGradient)', fontSize: 22, fontWeight: 700, fontFamily: 'system-ui, -apple-system, sans-serif' }}>stripe</text>
+                </svg>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 600, color: 'var(--gray-900)', marginBottom: 4 }}>Secure Payments</div>
+                <div style={{ fontSize: 14, color: 'var(--gray-600)' }}>
+                  All payments are processed securely through Stripe. We accept all major credit cards.
                 </div>
               </div>
-            ))}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ 
+                  padding: '8px 16px', 
+                  background: '#fff', 
+                  borderRadius: 6, 
+                  fontSize: 18, 
+                  fontWeight: 700, 
+                  color: '#1a1f71',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                }}>VISA</div>
+                <div style={{ 
+                  padding: '8px 16px', 
+                  background: '#fff', 
+                  borderRadius: 6, 
+                  fontSize: 18, 
+                  fontWeight: 700, 
+                  color: '#eb001b',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                }}>MC</div>
+                <div style={{ 
+                  padding: '8px 16px', 
+                  background: '#fff', 
+                  borderRadius: 6, 
+                  fontSize: 18, 
+                  fontWeight: 700, 
+                  color: '#0066b2',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                }}>AMEX</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="payment-methods">
+            {paymentMethods.length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '48px 24px',
+                color: 'var(--gray-500)',
+                fontSize: 14
+              }}>
+                <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }}>💳</div>
+                <div>No payment methods added yet</div>
+                <div style={{ marginTop: 8 }}>You'll be prompted to add a payment method when you upgrade your plan</div>
+              </div>
+            ) : (
+              paymentMethods.map((method, index) => (
+                <div key={index} className="payment-method-card">
+                  <div className="payment-method-icon">
+                    <svg viewBox="0 0 60 40" style={{ height: 32 }}>
+                      <text x="5" y="24" style={{ fill: '#635BFF', fontSize: 16, fontWeight: 700 }}>stripe</text>
+                    </svg>
+                  </div>
+                  <div className="payment-method-details">
+                    <div className="payment-method-brand">{method.brand} (via Stripe)</div>
+                    <div className="payment-method-number">•••• {method.last4}</div>
+                    <div className="payment-method-expiry">Expires {method.expiry}</div>
+                  </div>
+                  <div className="payment-method-actions">
+                    {method.default && <div className="badge badge-info">Default</div>}
+                    <button className="button-ghost">Manage in Stripe</button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -364,7 +556,7 @@ const BillingPage = () => {
           <div className="faq-item">
             <h3 className="faq-question">Can I change my plan at any time?</h3>
             <p className="faq-answer">
-              Yes! You can upgrade or downgrade your plan at any time. When you upgrade, you'll be charged the prorated difference immediately. When you downgrade, the new price will apply on your next billing cycle.
+              Yes! You can upgrade or downgrade your plan at any time. When you upgrade, you'll be redirected to Stripe's secure checkout to complete the payment. When you downgrade, the new price will apply on your next billing cycle.
             </p>
           </div>
 
@@ -378,14 +570,21 @@ const BillingPage = () => {
           <div className="faq-item">
             <h3 className="faq-question">Is there a free trial?</h3>
             <p className="faq-answer">
-              Yes! All plans come with a 14-day free trial. You can explore all features without providing a credit card. Your trial automatically converts to a paid plan unless you cancel.
+              Yes! All paid plans come with a 14-day free trial. You can explore all features without providing a credit card. Your trial automatically converts to a paid plan unless you cancel through Stripe.
             </p>
           </div>
 
           <div className="faq-item">
             <h3 className="faq-question">How do I cancel my subscription?</h3>
             <p className="faq-answer">
-              You can cancel your subscription at any time from this billing page. Your account will remain active until the end of your current billing period. We'll send you a confirmation email when your cancellation is processed.
+              You can manage and cancel your subscription through our secure Stripe customer portal. Your account will remain active until the end of your current billing period. We'll send you a confirmation email when your cancellation is processed.
+            </p>
+          </div>
+
+          <div className="faq-item">
+            <h3 className="faq-question">What payment methods do you accept?</h3>
+            <p className="faq-answer">
+              We accept all major credit cards including Visa, Mastercard, and American Express. All payments are securely processed through Stripe, a PCI-compliant payment processor. We do not store any of your payment information on our servers.
             </p>
           </div>
         </div>
@@ -408,6 +607,19 @@ const BillingPage = () => {
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 };

@@ -2,20 +2,30 @@
 Billing router for HireAI.
 """
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from datetime import datetime
 from typing import List, Optional
 
 from ..services.auth_service import AuthService
 from ..services.billing_service import BillingService
+from ..services.stripe_service import StripeService
 from ..models.database import User, Subscription, Usage, Invoice
+from ..config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+# Initialize Stripe service if API key is configured
+stripe_service = None
+if settings.stripe_api_key:
+    stripe_service = StripeService(settings.stripe_api_key)
+else:
+    logger.warning("Stripe API key not configured. Stripe features will not work.")
 
 
 class CurrentPlanResponse(BaseModel):
@@ -133,8 +143,16 @@ async def subscribe_plan(
     request: SubscribeRequest,
     user_id: str = Depends(get_current_user)
 ):
-    """Subscribe to a plan."""
+    """Subscribe to a plan using Stripe."""
     try:
+        logger.info(f"Subscribe request: user_id={user_id}, plan={request.plan_id}, cycle={request.billing_cycle}")
+        
+        if not stripe_service:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Stripe payment service is not configured"
+            )
+        
         # Get plan details
         plans = BillingService.get_plans()
         selected_plan = None
@@ -150,25 +168,38 @@ async def subscribe_plan(
                 detail="Plan not found"
             )
         
-        # In real app with Stripe, create checkout session
-        # checkout_url = stripe_service.create_checkout_session(user_id, request.plan_id, request.billing_cycle)
+        # Create Stripe checkout session
+        frontend_url = settings.cors_origins_list[0] if settings.cors_origins_list else "http://localhost:3000"
+        logger.info(f"Frontend URL: {frontend_url}")
         
-        logger.info(f"User {user_id} subscribing to {request.plan_id} ({request.billing_cycle})")
+        # For testing, always create dynamic prices (skip price_ids from env)
+        logger.info("Creating checkout session with dynamic price")
         
-        # For now, return success (in real app, return checkout URL)
+        checkout_url = stripe_service.create_checkout_session(
+            user_id=user_id,
+            plan_id=request.plan_id,
+            billing_cycle=request.billing_cycle,
+            success_url=f"{frontend_url}/billing?success=true&plan={request.plan_id}",
+            cancel_url=f"{frontend_url}/billing?cancelled=true",
+            price_ids=None  # Always use dynamic prices for testing
+        )
+        
+        logger.info(f"Checkout session created: {checkout_url}")
+        
         return {
-            "message": "Subscription created successfully",
+            "message": "Redirecting to Stripe checkout",
             "plan": selected_plan,
+            "checkout_url": checkout_url,
             "next_billing_date": BillingService.calculate_next_billing_date(request.billing_cycle).isoformat()
         }
     
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Subscribe error: {str(e)}")
+        logger.error(f"Subscribe error: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create subscription"
+            detail=f"Failed to create subscription: {str(e)}"
         )
 
 
@@ -330,3 +361,134 @@ async def get_usage(user_id: str = Depends(get_current_user)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch usage"
         )
+
+
+@router.post("/webhook")
+async def stripe_webhook(request: Request):
+    """
+    Handle Stripe webhook events.
+    This endpoint receives notifications from Stripe about payment events.
+    """
+    if not settings.stripe_webhook_secret or not stripe_service:
+        logger.error("Stripe webhook not configured")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Webhook not configured"}
+        )
+    
+    try:
+        payload = await request.body()
+        sig_header = request.headers.get("stripe-signature")
+        
+        if not sig_header:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Missing Stripe signature"
+            )
+        
+        # Verify webhook signature (payload is bytes, convert to str for Stripe)
+        event = stripe_service.construct_webhook_event(
+            payload.decode('utf-8'),
+            sig_header,
+            settings.stripe_webhook_secret
+        )
+        
+        logger.info(f"Received Stripe webhook: {event['type']}")
+        
+        # Handle different event types
+        if event['type'] == 'checkout.session.completed':
+            await handle_checkout_completed(event)
+        elif event['type'] == 'customer.subscription.created':
+            await handle_subscription_created(event)
+        elif event['type'] == 'customer.subscription.updated':
+            await handle_subscription_updated(event)
+        elif event['type'] == 'customer.subscription.deleted':
+            await handle_subscription_deleted(event)
+        elif event['type'] == 'invoice.payment_succeeded':
+            await handle_payment_succeeded(event)
+        elif event['type'] == 'invoice.payment_failed':
+            await handle_payment_failed(event)
+        else:
+            logger.info(f"Unhandled event type: {event['type']}")
+        
+        return JSONResponse(content={"status": "success"})
+    
+    except Exception as e:
+        logger.error(f"Webhook error: {str(e)}")
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "Webhook handler failed"}
+        )
+
+
+async def handle_checkout_completed(event):
+    """Handle checkout.session.completed event."""
+    session = event['data']['object']
+    user_id = session.get('client_reference_id')
+    subscription_id = session.get('subscription')
+    
+    if user_id and subscription_id:
+        logger.info(f"Checkout completed for user {user_id}, subscription {subscription_id}")
+        
+        # Update database with subscription info
+        # await update_user_subscription(user_id, {
+        #     'stripe_customer_id': session.get('customer'),
+        #     'stripe_subscription_id': subscription_id,
+        #     'status': session.get('status'),
+        #     'plan_id': session.get('metadata', {}).get('plan_id'),
+        #     'billing_cycle': session.get('metadata', {}).get('billing_cycle')
+        # })
+
+
+async def handle_subscription_created(event):
+    """Handle customer.subscription.created event."""
+    subscription = event['data']['object']
+    logger.info(f"Subscription created: {subscription['id']}")
+    
+    # Update user's subscription in database
+    # user_id = subscription.get('metadata', {}).get('user_id')
+    # if user_id:
+    #     await update_user_subscription(user_id, {
+    #         'stripe_subscription_id': subscription['id'],
+    #         'status': subscription['status'],
+    #         'plan_id': subscription.get('metadata', {}).get('plan_id')
+    #     })
+
+
+async def handle_subscription_updated(event):
+    """Handle customer.subscription.updated event."""
+    subscription = event['data']['object']
+    logger.info(f"Subscription updated: {subscription['id']}, status: {subscription['status']}")
+    
+    # Update subscription status in database
+    # user_id = subscription.get('metadata', {}).get('user_id')
+    # if user_id:
+    #     await update_user_subscription_status(user_id, subscription['status'])
+
+
+async def handle_subscription_deleted(event):
+    """Handle customer.subscription.deleted event."""
+    subscription = event['data']['object']
+    logger.info(f"Subscription cancelled: {subscription['id']}")
+    
+    # Update user to free plan
+    # user_id = subscription.get('metadata', {}).get('user_id')
+    # if user_id:
+    #     await update_user_subscription_status(user_id, 'cancelled')
+
+
+async def handle_payment_succeeded(event):
+    """Handle invoice.payment_succeeded event."""
+    invoice = event['data']['object']
+    logger.info(f"Payment succeeded for subscription {invoice.get('subscription')}")
+    
+    # Update billing history, send receipt email, etc.
+
+
+async def handle_payment_failed(event):
+    """Handle invoice.payment_failed event."""
+    invoice = event['data']['object']
+    logger.warning(f"Payment failed for subscription {invoice.get('subscription')}")
+    
+    # Notify user about failed payment
+    # send_payment_failed_email(user_id, invoice)

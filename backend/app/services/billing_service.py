@@ -128,7 +128,7 @@ class BillingService:
         new_plan: str,
         billing_cycle: str,
         days_used: int
-    ) -> float:
+    ) -> Dict[str, float]:
         """Calculate prorated amount for plan changes."""
         old_plan_limits = BillingService.PLAN_LIMITS[old_plan]
         new_plan_limits = BillingService.PLAN_LIMITS[new_plan]

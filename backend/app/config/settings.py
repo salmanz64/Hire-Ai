@@ -39,8 +39,8 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 10080  # 7 days
 
-    # NEW: Database
-    database_url: str = "sqlite:///./hr_ai.db"
+    # NEW: Database (Neon DB - required)
+    database_url: str = ""
 
     # NEW: Stripe (Optional)
     stripe_api_key: str = ""

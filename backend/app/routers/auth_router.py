@@ -1,5 +1,5 @@
 """
-Authentication router for HireAI.
+Authentication router for HireAI using Neon DB.
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,13 +9,13 @@ from datetime import datetime
 from typing import Optional
 
 from ..services.auth_service import AuthService
-from ..models.database import User
+from ..models.database import User, get_db
 from ..config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
 class UserRegister(BaseModel):
@@ -23,6 +23,7 @@ class UserRegister(BaseModel):
     password: str
     full_name: str
     company_name: Optional[str] = None
+    confirm_password: Optional[str] = None
 
 
 class UserLogin(BaseModel):
@@ -38,6 +39,9 @@ class UserResponse(BaseModel):
     plan: str
     created_at: datetime
 
+    class Config:
+        from_attributes = True
+
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -45,43 +49,107 @@ class TokenResponse(BaseModel):
     user: UserResponse
 
 
+async def get_current_user(token: str = Depends(oauth2_scheme), db = Depends(get_db)):
+    """Get current authenticated user from token."""
+    try:
+        payload = AuthService.decode_token(token)
+        
+        if not payload:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials"
+            )
+        
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials"
+            )
+        
+        user = await AuthService.get_user_by_id(db, user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found"
+            )
+        
+        if not bool(user.is_active):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is inactive"
+            )
+        
+        return user
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Get current user error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials"
+        )
+
+
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserRegister):
+async def register(user_data: UserRegister, db = Depends(get_db)):
     """Register a new user."""
     try:
-        # Check if user already exists (in real app, check database)
-        # For now, simulate user creation
+        print(f"Registration attempt for email: {user_data.email}")
+        logger.info(f"Registration attempt for email: {user_data.email}")
         
-        # Hash password
-        password_hash = AuthService.get_password_hash(user_data.password)
+        # Validate password confirmation
+        if user_data.confirm_password and user_data.password != user_data.confirm_password:
+            print(f"Password mismatch for email: {user_data.email}")
+            logger.warning(f"Password mismatch for email: {user_data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Passwords do not match"
+            )
         
-        # Create user in database (simulated)
-        user_id = f"user_{user_data.email}"
+        # Check if user already exists
+        existing_user = await AuthService.get_user_by_email(db, user_data.email)
+        if existing_user:
+            print(f"Email already registered: {user_data.email}")
+            logger.warning(f"Email already registered: {user_data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
         
-        logger.info(f"User registered: {user_data.email}")
+        # Create user in database
+        user = await AuthService.create_user(
+            db=db,
+            email=user_data.email,
+            password=user_data.password,
+            full_name=user_data.full_name,
+            company_name=user_data.company_name,
+            plan="free"
+        )
+        
+        print(f"User registered successfully: {user_data.email}")
+        logger.info(f"User registered successfully: {user_data.email}")
         
         # Create JWT token
         token_data = {
-            "sub": user_id,
-            "email": user_data.email,
-            "full_name": user_data.full_name,
-            "plan": "free"
+            "sub": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "company_name": user.company_name,
+            "plan": user.plan
         }
         access_token = AuthService.create_access_token(token_data)
         
         return TokenResponse(
             access_token=access_token,
-            user=UserResponse(
-                id=user_id,
-                email=user_data.email,
-                full_name=user_data.full_name,
-                company_name=user_data.company_name,
-                plan="free",
-                created_at=datetime.utcnow()
-            )
+            user=UserResponse.model_validate(user)
         )
     
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"Registration error: {str(e)}")
         logger.error(f"Registration error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -90,38 +158,43 @@ async def register(user_data: UserRegister):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(credentials: UserLogin):
+async def login(credentials: UserLogin, db = Depends(get_db)):
     """Login an existing user."""
     try:
-        # In real app, verify credentials against database
-        # For now, simulate login
+        # Authenticate user
+        user = await AuthService.authenticate_user(db, credentials.email, credentials.password)
         
-        logger.info(f"User login attempt: {credentials.email}")
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
         
-        # Simulate successful login
-        user_id = f"user_{credentials.email}"
+        if not bool(user.is_active):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is inactive"
+            )
+        
+        logger.info(f"User logged in: {credentials.email}")
         
         # Create JWT token
         token_data = {
-            "sub": user_id,
-            "email": credentials.email,
-            "full_name": "Demo User",
-            "plan": "free"
+            "sub": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "company_name": user.company_name,
+            "plan": user.plan
         }
         access_token = AuthService.create_access_token(token_data)
         
         return TokenResponse(
             access_token=access_token,
-            user=UserResponse(
-                id=user_id,
-                email=credentials.email,
-                full_name="Demo User",
-                company_name="Demo Company",
-                plan="free",
-                created_at=datetime.utcnow()
-            )
+            user=UserResponse.model_validate(user)
         )
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
         raise HTTPException(
@@ -131,35 +204,9 @@ async def login(credentials: UserLogin):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    """Get the current authenticated user."""
-    try:
-        # Decode token
-        payload = AuthService.decode_token(token)
-        
-        if not payload:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials"
-            )
-        
-        # In real app, fetch user from database
-        # For now, return mock data
-        return UserResponse(
-            id=payload.get("sub", ""),
-            email=payload.get("email", ""),
-            full_name=payload.get("full_name", ""),
-            company_name=payload.get("company_name"),
-            plan=payload.get("plan", "free"),
-            created_at=datetime.utcnow()
-        )
-    
-    except Exception as e:
-        logger.error(f"Get current user error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials"
-        )
+async def get_current_user_info(current_user: User = Depends(get_current_user)):
+    """Get current authenticated user information."""
+    return UserResponse.model_validate(current_user)
 
 
 @router.post("/logout")
