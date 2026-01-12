@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
 
     # Google Calendar
-    google_calendar_credentials_path: str = os.path.join(BASE_DIR, "backend", "config", "google_credentials.json")
+    google_calendar_credentials_path: str = os.path.join(BASE_DIR, "config", "google_credentials.json")
     google_calendar_id: str = "primary"
 
     # Application
