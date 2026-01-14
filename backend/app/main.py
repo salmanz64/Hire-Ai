@@ -52,6 +52,8 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+logger.info(f"Starting FastAPI app with host={settings.app_host}:{settings.app_port}")
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
