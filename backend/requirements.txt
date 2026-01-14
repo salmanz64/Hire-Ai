@@ -1,12 +1,11 @@
-# Render build fix - pinned pydantic-core to prevent Rust compilation issue
+# Render build fix - removed pydantic to prevent version conflicts
 setuptools>=65.0.0
 wheel>=0.40.0
 
 fastapi==0.115.0
 uvicorn==0.30.0
-pydantic==2.6.0
-pydantic-core==2.14.1
-pydantic-settings==2.2.0
+pydantic-core~=2.0
+pydantic-settings~=2.2
 python-multipart==0.0.6
 python-dotenv==1.0.0
 PyPDF2==3.0.1
