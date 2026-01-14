@@ -1,11 +1,11 @@
-# Build dependencies (helps with Render builds)
-# Cache cleared 2024-01-14
+# Render build fix - pinned pydantic-core to prevent Rust compilation issue
 setuptools>=65.0.0
 wheel>=0.40.0
 
 fastapi==0.115.0
 uvicorn==0.30.0
 pydantic==2.5.0
+pydantic-core<2.15.0
 pydantic-settings==2.1.0
 python-multipart==0.0.6
 python-dotenv==1.0.0
