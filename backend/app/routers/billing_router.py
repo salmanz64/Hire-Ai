@@ -429,30 +429,12 @@ async def handle_checkout_completed(event):
     
     if user_id and subscription_id:
         logger.info(f"Checkout completed for user {user_id}, subscription {subscription_id}")
-        
-        # Update database with subscription info
-        # await update_user_subscription(user_id, {
-        #     'stripe_customer_id': session.get('customer'),
-        #     'stripe_subscription_id': subscription_id,
-        #     'status': session.get('status'),
-        #     'plan_id': session.get('metadata', {}).get('plan_id'),
-        #     'billing_cycle': session.get('metadata', {}).get('billing_cycle')
-        # })
 
 
 async def handle_subscription_created(event):
     """Handle customer.subscription.created event."""
     subscription = event['data']['object']
     logger.info(f"Subscription created: {subscription['id']}")
-    
-    # Update user's subscription in database
-    # user_id = subscription.get('metadata', {}).get('user_id')
-    # if user_id:
-    #     await update_user_subscription(user_id, {
-    #         'stripe_subscription_id': subscription['id'],
-    #         'status': subscription['status'],
-    #         'plan_id': subscription.get('metadata', {}).get('plan_id')
-    #     })
 
 
 async def handle_subscription_updated(event):

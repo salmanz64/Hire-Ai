@@ -65,6 +65,11 @@ Thumbs.db
 backend/uploads/*.pdf
 !backend/uploads/.gitkeep
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
 # Testing
 .pytest_cache/
 .coverage

@@ -49,7 +49,7 @@ class AuthService:
         except JWTError:
             return None
         except Exception as e:
-            print(f"Token decode error: {str(e)}")
+            logger.error(f"Token decode error: {str(e)}")
             return None
     
     @staticmethod

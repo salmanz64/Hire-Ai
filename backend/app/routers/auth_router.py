@@ -96,12 +96,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db = Depends(get
 async def register(user_data: UserRegister, db = Depends(get_db)):
     """Register a new user."""
     try:
-        print(f"Registration attempt for email: {user_data.email}")
         logger.info(f"Registration attempt for email: {user_data.email}")
         
         # Validate password confirmation
         if user_data.confirm_password and user_data.password != user_data.confirm_password:
-            print(f"Password mismatch for email: {user_data.email}")
             logger.warning(f"Password mismatch for email: {user_data.email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -111,7 +109,6 @@ async def register(user_data: UserRegister, db = Depends(get_db)):
         # Check if user already exists
         existing_user = await AuthService.get_user_by_email(db, user_data.email)
         if existing_user:
-            print(f"Email already registered: {user_data.email}")
             logger.warning(f"Email already registered: {user_data.email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -128,7 +125,6 @@ async def register(user_data: UserRegister, db = Depends(get_db)):
             plan="free"
         )
         
-        print(f"User registered successfully: {user_data.email}")
         logger.info(f"User registered successfully: {user_data.email}")
         
         # Create JWT token
@@ -149,7 +145,6 @@ async def register(user_data: UserRegister, db = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Registration error: {str(e)}")
         logger.error(f"Registration error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
