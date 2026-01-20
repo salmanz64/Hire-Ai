@@ -1,22 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login, isAuthenticated, user } = useAuth();
+  const { login } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      navigate('/app/dashboard', { replace: true });
-    }
-  }, [isAuthenticated, user, navigate]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -24,27 +19,44 @@ const Login = () => {
       ...prev,
       [name]: value
     }));
-    setError('');
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.email || !formData.password) {
-      setError('Please fill in all fields');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
     try {
-      await login(formData.email, formData.password);
-      navigate('/app/dashboard');
-    } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
-    } finally {
-      setLoading(false);
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      if (isSubmitting || loading) {
+        return false;
+      }
+      
+      if (!formData.email || !formData.password) {
+        setError('Please fill in all fields');
+        return false;
+      }
+
+      setIsSubmitting(true);
+      setLoading(true);
+      setError('');
+
+      try {
+        await login(formData.email, formData.password);
+        setError('');
+        navigate('/app/dashboard');
+      } catch (err) {
+        const errorMessage = err.message || 'Login failed. Please try again.';
+        console.error('Login error:', errorMessage);
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+        setIsSubmitting(false);
+      }
+      return false;
+    } catch (error) {
+      console.error('handleSubmit error:', error);
+      return false;
     }
   };
 
@@ -60,9 +72,9 @@ const Login = () => {
           <p>Sign in to your account to continue</p>
         </div>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        <form className="auth-form" onSubmit={handleSubmit} noValidate autoComplete="off">
           {error && (
-            <div className="alert alert-error">
+            <div className="alert alert-error" key={error} style={{ animation: 'none', opacity: '1', transition: 'none' }}>
               <div className="alert-icon">⚠️</div>
               <div className="alert-content">
                 <div className="alert-message">{error}</div>
@@ -80,7 +92,7 @@ const Login = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              disabled={loading}
+              disabled={loading || isSubmitting}
             />
           </div>
 
@@ -103,7 +115,7 @@ const Login = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              disabled={loading}
+              disabled={loading || isSubmitting}
             />
           </div>
 
@@ -111,9 +123,15 @@ const Login = () => {
             type="submit" 
             className="button-primary button-lg" 
             style={{ width: '100%' }}
-            disabled={loading}
+            disabled={loading || isSubmitting}
+            onClick={(e) => {
+              if (loading || isSubmitting) {
+                e.preventDefault();
+                e.stopPropagation();
+              }
+            }}
           >
-            {loading ? (
+            {loading || isSubmitting ? (
               <>
                 <svg className="spinner" style={{ width: 20, height: 20, margin: 0 }} fill="none" viewBox="0 0 24 24">
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>

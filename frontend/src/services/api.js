@@ -24,26 +24,29 @@ api.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
- api.interceptors.response.use(
-   (response) => {
-     console.log('API Response:', response.status, response.config.url, response.data);
-     return response;
-   },
-   (error) => {
-     if (error.code === 'ERR_NETWORK' || !error.response) {
-       console.error('API Network Error: Cannot connect to backend at', API_BASE_URL);
-       console.error('Make sure the backend is running on https://hire-ai-6fgr.onrender.com');
-     } else {
-       console.error('API Response Error:', error.message, error.response?.data);
-       if (error.response?.status === 401) {
-         localStorage.removeItem('token');
-         localStorage.removeItem('user');
-         window.location.href = '/login';
-       }
-     }
-     return Promise.reject(error);
-   }
- );
+  api.interceptors.response.use(
+    (response) => {
+      console.log('API Response:', response.status, response.config.url, response.data);
+      return response;
+    },
+    (error) => {
+      if (error.code === 'ERR_NETWORK' || !error.response) {
+        console.error('API Network Error: Cannot connect to backend at', API_BASE_URL);
+        console.error('Make sure the backend is running on https://hire-ai-6fgr.onrender.com');
+      } else {
+        console.error('API Response Error:', error.message, error.response?.data);
+        if (error.response?.status === 401) {
+          const currentPath = window.location.pathname;
+          if (currentPath !== '/login' && currentPath !== '/signup') {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+          }
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
 
 export const processResumes = async (jobData, files) => {
   const formData = new FormData();

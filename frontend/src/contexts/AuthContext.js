@@ -50,6 +50,8 @@ export const AuthProvider = ({ children }) => {
       
       return response.data.user;
     } catch (error) {
+      console.error('AuthContext login error:', error);
+      console.error('Error response:', error.response);
       const message = error.response?.data?.detail || 'Login failed';
       throw new Error(message);
     }

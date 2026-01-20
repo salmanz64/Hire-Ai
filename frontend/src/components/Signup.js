@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import axios from 'axios';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -64,21 +63,6 @@ const Signup = () => {
     try {
       console.log('=== Starting registration ===');
       console.log('Form data:', formData);
-      
-      // Test backend connectivity first
-      try {
-        console.log('Testing backend connectivity at http://localhost:8000/health');
-        const healthCheck = await axios.get('http://localhost:8000/health', { timeout: 5000 });
-        console.log('Backend health check:', healthCheck.data);
-      } catch (healthError) {
-        console.error('Backend health check failed:', healthError);
-        if (healthError.code === 'ERR_NETWORK') {
-          setError('Cannot connect to backend server. Make sure it is running on http://localhost:8000');
-        } else {
-          setError('Backend server error: ' + healthError.message);
-        }
-        return;
-      }
       
       const result = await register({
         email: formData.email,
