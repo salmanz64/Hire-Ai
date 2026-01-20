@@ -176,10 +176,6 @@ const BillingPage = () => {
     }
   };
 
-  const handleUpdatePayment = () => {
-    alert('Payment method updated!');
-  };
-
   const handleDownloadInvoice = (invoiceId) => {
     alert(`Downloading invoice ${invoiceId}...`);
   };

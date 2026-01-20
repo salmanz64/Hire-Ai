@@ -10,20 +10,6 @@ const CandidateReview = ({
   onBack,
   onReset
 }) => {
-  const getScoreColor = (score) => {
-    if (score >= 80) return 'var(--success)';
-    if (score >= 60) return 'var(--warning)';
-    if (score >= 40) return 'var(--danger)';
-    return 'var(--danger)';
-  };
-
-  const getScoreBadge = (score) => {
-    if (score >= 80) return 'badge-success';
-    if (score >= 60) return 'badge-warning';
-    if (score >= 40) return 'badge-danger';
-    return 'badge-danger';
-  };
-
   return (
     <div>
       <div className="summary-box">

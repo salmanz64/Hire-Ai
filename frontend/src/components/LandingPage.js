@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const LandingPage = () => {
@@ -405,31 +405,31 @@ const LandingPage = () => {
           </div>
           <div className="footer-section">
             <h4 className="footer-title">Product</h4>
-            <a href="#features">Features</a>
-            <a href="#pricing">Pricing</a>
-            <a href="#">Integrations</a>
-            <a href="#">API</a>
+            <button className="button-link">Features</button>
+            <button className="button-link">Pricing</button>
+            <button className="button-link">Integrations</button>
+            <button className="button-link">API</button>
           </div>
           <div className="footer-section">
             <h4 className="footer-title">Company</h4>
-            <a href="#">About Us</a>
-            <a href="#">Careers</a>
-            <a href="#">Blog</a>
-            <a href="#">Contact</a>
+            <button className="button-link">About Us</button>
+            <button className="button-link">Careers</button>
+            <button className="button-link">Blog</button>
+            <button className="button-link">Contact</button>
           </div>
           <div className="footer-section">
             <h4 className="footer-title">Legal</h4>
-            <a href="#">Privacy Policy</a>
-            <a href="#">Terms of Service</a>
-            <a href="#">Security</a>
-            <a href="#">GDPR</a>
+            <button className="button-link">Privacy Policy</button>
+            <button className="button-link">Terms of Service</button>
+            <button className="button-link">Security</button>
+            <button className="button-link">GDPR</button>
           </div>
           <div className="footer-section">
             <h4 className="footer-title">Connect</h4>
-            <a href="#">Twitter</a>
-            <a href="#">LinkedIn</a>
-            <a href="#">GitHub</a>
-            <a href="#">Discord</a>
+            <button className="button-link">Twitter</button>
+            <button className="button-link">LinkedIn</button>
+            <button className="button-link">GitHub</button>
+            <button className="button-link">Discord</button>
           </div>
         </div>
         <div className="footer-bottom">

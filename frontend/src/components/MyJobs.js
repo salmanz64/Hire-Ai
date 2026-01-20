@@ -4,11 +4,9 @@ import { useSubscription } from '../contexts/SubscriptionContext';
 
 const MyJobs = () => {
   const navigate = useNavigate();
-  const { jobs, currentPlan, activeJobCount, canCreateJob, addJob, updateJobStatus, getJobUsagePercentage } = useSubscription();
+  const { jobs, currentPlan, activeJobCount, canCreateJob, addJob, updateJobStatus } = useSubscription();
   const [showNewJobModal, setShowNewJobModal] = useState(false);
   const [newJobTitle, setNewJobTitle] = useState('');
-
-  const jobUsage = getJobUsagePercentage();
 
   const handleCreateJob = () => {
     if (!canCreateJob()) {

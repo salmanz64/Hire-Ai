@@ -66,7 +66,6 @@ function AppLayout() {
   const { user, logout } = useAuth();
   const { addJob, incrementResumeCount, fetchJobs, canCreateJob } = useSubscription();
   const [view, setView] = React.useState('dashboard');
-  const [jobId, setJobId] = React.useState(null);
   
   const [step, setStep] = React.useState(1);
   const [jobData, setJobData] = React.useState({
@@ -174,7 +173,6 @@ function AppLayout() {
       });
       
       if (newJob) {
-        setJobId(newJob.id);
         await incrementResumeCount(uploadedFiles.length);
       }
       
@@ -203,7 +201,6 @@ function AppLayout() {
     setSelectedCandidates([]);
     setInterviewSchedule(null);
     setEmailResult(null);
-    setJobId(null);
     setError(null);
     await fetchJobs();
   };
