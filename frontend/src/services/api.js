@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+const API_BASE_URL = 'https://hire-ai-6fgr.onrender.com/api/v1';
 
 console.log('API Base URL:', API_BASE_URL);
 
@@ -32,7 +32,7 @@ api.interceptors.request.use((config) => {
    (error) => {
      if (error.code === 'ERR_NETWORK' || !error.response) {
        console.error('API Network Error: Cannot connect to backend at', API_BASE_URL);
-       console.error('Make sure the backend is running on http://localhost:8000');
+       console.error('Make sure the backend is running on https://hire-ai-6fgr.onrender.com');
      } else {
        console.error('API Response Error:', error.message, error.response?.data);
        if (error.response?.status === 401) {
