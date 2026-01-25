@@ -97,16 +97,7 @@ const Login = () => {
           </div>
 
           <div className="form-group">
-            <div className="form-label-row">
-              <label className="form-label">Password</label>
-              <button 
-                type="button" 
-                className="button-link" 
-                onClick={() => navigate('/forgot-password')}
-              >
-                Forgot password?
-              </button>
-            </div>
+            <label className="form-label">Password</label>
             <input
               type="password"
               name="password"
