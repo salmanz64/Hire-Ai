@@ -57,11 +57,19 @@ logger.info(f"Starting FastAPI app with host={settings.app_host}:{settings.app_p
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Global OPTIONS handler for CORS preflight
+@app.options("/{path:path}")
+async def global_options_handler(request: Request, path: str):
+    """Handle OPTIONS requests for all paths."""
+    return {
+        "status": "ok"
+    }
 
 # Request logging middleware
 @app.middleware("http")
