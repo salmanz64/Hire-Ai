@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     # Application
     app_host: str = "0.0.0.0"
     app_port: int = 8000
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,https://hire-ai-6fgr.onrender.com"
 
     # Interview Configuration
     interview_duration_minutes: int = 60
