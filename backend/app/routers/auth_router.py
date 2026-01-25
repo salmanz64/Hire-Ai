@@ -92,6 +92,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db = Depends(get
         )
 
 
+@router.options("/register")
+async def register_options():
+    """Handle OPTIONS preflight for register endpoint."""
+    return {"status": "ok"}
+
+
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserRegister, db = Depends(get_db)):
     """Register a new user."""
@@ -204,10 +210,22 @@ async def login(credentials: UserLogin, db = Depends(get_db)):
         )
 
 
+@router.options("/me")
+async def me_options():
+    """Handle OPTIONS preflight for me endpoint."""
+    return {"status": "ok"}
+
+
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(current_user: User = Depends(get_current_user)):
     """Get current authenticated user information."""
     return UserResponse.model_validate(current_user)
+
+
+@router.options("/logout")
+async def logout_options():
+    """Handle OPTIONS preflight for logout endpoint."""
+    return {"status": "ok"}
 
 
 @router.post("/logout")
