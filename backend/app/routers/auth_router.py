@@ -15,7 +15,7 @@ from ..config.settings import settings
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
 
 
 class UserRegister(BaseModel):
@@ -150,6 +150,12 @@ async def register(user_data: UserRegister, db = Depends(get_db)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to register user"
         )
+
+
+@router.options("/login")
+async def login_options():
+    """Handle OPTIONS preflight for login endpoint."""
+    return {"status": "ok"}
 
 
 @router.post("/login", response_model=TokenResponse)
