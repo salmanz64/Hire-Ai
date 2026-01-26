@@ -3,7 +3,7 @@
 ![Landing Page](screenshots/landing.png)
 ![Dashboard](screenshots/dashboard.png)
 ![Candidate Ranking](screenshots/ranking.png)
-![My Jobs](screenshots/my-jobs.png)
+![My Jobs](screenshots/payment.png)
 
 [▶ Watch Demo Video](https://your-video-link-here)
 
