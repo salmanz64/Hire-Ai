@@ -1,29 +1,10 @@
-"""
-Candidate ranking and selection service.
-"""
-import logging
-from typing import List, Dict, Tuple
-from datetime import datetime
-
-logger = logging.getLogger(__name__)
+from typing import List, Dict
 
 
 class CandidateRanker:
-    """Service to rank and select candidates based on analysis results."""
-
     @staticmethod
     def rank_candidates(analyses: List[Dict]) -> List[Dict]:
-        """
-        Rank candidates based on their analysis scores.
-
-        Args:
-            analyses: List of candidate analysis results
-
-        Returns:
-            Sorted list of analyses by overall score (descending)
-        """
         try:
-            # Sort by overall score, then by skill score, then by experience score
             ranked = sorted(
                 analyses,
                 key=lambda x: (
@@ -33,9 +14,7 @@ class CandidateRanker:
                 )
             )
             return ranked
-
-        except Exception as e:
-            logger.error(f"Error ranking candidates: {str(e)}")
+        except Exception:
             return analyses
 
     @staticmethod
@@ -44,50 +23,23 @@ class CandidateRanker:
         max_candidates: int = 10,
         min_score_threshold: int = 50
     ) -> List[Dict]:
-        """
-        Select top candidates based on ranking and thresholds.
-
-        Args:
-            ranked_candidates: Already ranked list of candidates
-            max_candidates: Maximum number of candidates to select
-            min_score_threshold: Minimum score required to be considered
-
-        Returns:
-            List of selected candidates
-        """
         try:
-            # Filter by minimum score threshold
             qualified = [
                 candidate for candidate in ranked_candidates
                 if candidate.get('overall_score', 0) >= min_score_threshold
             ]
-
-            # Select top N candidates
             selected = qualified[:max_candidates]
-
-            logger.info(f"Selected {len(selected)} candidates from {len(ranked_candidates)} ranked candidates")
             return selected
-
-        except Exception as e:
-            logger.error(f"Error selecting top candidates: {str(e)}")
+        except Exception:
             return ranked_candidates[:max_candidates]
 
     @staticmethod
     def categorize_candidates(ranked_candidates: List[Dict]) -> Dict[str, List[Dict]]:
-        """
-        Categorize candidates into tiers based on their scores.
-
-        Args:
-            ranked_candidates: Ranked list of candidates
-
-        Returns:
-            Dict with categories: top_tier, mid_tier, low_tier
-        """
         categories = {
-            "top_tier": [],  # 80-100
-            "mid_tier": [],  # 60-79
-            "low_tier": [],  # 40-59
-            "not_recommended": []  # 0-39
+            "top_tier": [],
+            "mid_tier": [],
+            "low_tier": [],
+            "not_recommended": []
         }
 
         for candidate in ranked_candidates:
@@ -105,15 +57,6 @@ class CandidateRanker:
 
     @staticmethod
     def generate_ranking_summary(ranked_candidates: List[Dict]) -> str:
-        """
-        Generate a summary of the ranking results.
-
-        Args:
-            ranked_candidates: Ranked list of candidates
-
-        Returns:
-            Summary text
-        """
         total = len(ranked_candidates)
         if total == 0:
             return "No candidates to summarize."
@@ -139,16 +82,6 @@ Top 3 Candidates:
 
     @staticmethod
     def compare_candidates(candidate1: Dict, candidate2: Dict) -> Dict:
-        """
-        Compare two candidates side by side.
-
-        Args:
-            candidate1: First candidate analysis
-            candidate2: Second candidate analysis
-
-        Returns:
-            Comparison result
-        """
         comparison = {
             "candidate1": {
                 "name": candidate1.get('candidate_name', 'Unknown'),

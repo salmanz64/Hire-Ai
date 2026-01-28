@@ -1,14 +1,8 @@
-"""
-Billing service for HireAI.
-"""
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Dict
-import math
 
 
 class BillingService:
-    """Service for billing and subscription management."""
-    
     PLAN_LIMITS = {
         "free": {
             "resumes_per_month": 10,
@@ -35,111 +29,59 @@ class BillingService:
     
     @staticmethod
     def get_plans() -> List[Dict]:
-        """Return all available plans."""
         return [
             {
                 "id": "free",
                 "name": "Free",
                 "monthly_price": "$0",
                 "yearly_price": "$0",
-                "savings": "",
                 "description": "Perfect for individuals",
                 "features": [
                     "10 resumes per month",
                     "1 active job posting",
                     "Email support",
-                    "Basic analytics",
-                    "Google Calendar integration"
-                ],
-                "popular": False,
-                "cta": "Get Started"
+                    "Basic analytics"
+                ]
             },
             {
                 "id": "starter",
                 "name": "Starter",
                 "monthly_price": "$49",
                 "yearly_price": "$470",
-                "savings": "Save 20%",
-                "description": "Perfect for small teams",
+                "description": "For small teams",
                 "features": [
                     "100 resumes per month",
                     "5 active job postings",
-                    "Email support",
-                    "Basic analytics",
-                    "Google Calendar integration",
-                    "Resume storage (30 days)"
-                ],
-                "popular": False,
-                "cta": "Get Started"
+                    "3 team members",
+                    "Priority support"
+                ]
             },
             {
                 "id": "professional",
                 "name": "Professional",
                 "monthly_price": "$149",
                 "yearly_price": "$1,430",
-                "savings": "Save 20%",
-                "description": "Best for growing companies",
+                "description": "For growing companies",
                 "features": [
                     "Unlimited resumes",
                     "25 active job postings",
-                    "Priority support",
-                    "Advanced analytics",
-                    "API access",
-                    "Custom workflows",
-                    "Unlimited resume storage"
-                ],
-                "popular": True,
-                "cta": "Get Started"
+                    "10 team members",
+                    "24/7 support"
+                ]
             }
         ]
     
     @staticmethod
-    def get_plan_limits(plan_id: str) -> Dict:
-        """Get limits for a specific plan."""
-        return BillingService.PLAN_LIMITS.get(plan_id, {})
-    
-    @staticmethod
-    def check_usage_limit(plan_id: str, usage_type: str, current_usage: int) -> Dict:
-        """Check if user has exceeded their plan limits."""
-        limits = BillingService.get_plan_limits(plan_id)
-        limit = limits.get(usage_type, 0)
+    def check_usage_limit(plan: str, usage_type: str, current_usage: int) -> bool:
+        if plan not in BillingService.PLAN_LIMITS:
+            return False
         
-        is_unlimited = limit == float("inf")
+        limit = BillingService.PLAN_LIMITS[plan].get(usage_type)
+        if limit == float('inf'):
+            return True
         
-        return {
-            "has_exceeded": not is_unlimited and current_usage >= limit,
-            "limit": "Unlimited" if is_unlimited else limit,
-            "current": current_usage,
-            "remaining": limit - current_usage if not is_unlimited else float("inf"),
-            "percentage": (current_usage / limit * 100) if not is_unlimited else 0
-        }
-    
-    @staticmethod
-    def calculate_next_billing_date(billing_cycle: str) -> datetime:
-        """Calculate next billing date based on cycle."""
-        if billing_cycle == "monthly":
-            return datetime.utcnow() + timedelta(days=30)
-        else:  # yearly
-            return datetime.utcnow() + timedelta(days=365)
-    
-    @staticmethod
-    def calculate_prorated_amount(
-        old_plan: str,
-        new_plan: str,
-        billing_cycle: str,
-        days_used: int
-    ) -> Dict[str, float]:
-        """Calculate prorated amount for plan changes."""
-        old_plan_limits = BillingService.PLAN_LIMITS[old_plan]
-        new_plan_limits = BillingService.PLAN_LIMITS[new_plan]
-        
-        # Get the full cycle price
-        full_price = new_plan_limits[f"price_{billing_cycle}"]
-        
-        # Calculate days in billing cycle
-        days_in_cycle = 365 if billing_cycle == "yearly" else 30
-        
-        # Calculate unused percentage
+        return current_usage < limit
+
         unused_percentage = (days_in_cycle - days_used) / days_in_cycle
         
         # Prorated amount for old plan
