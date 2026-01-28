@@ -47,7 +47,6 @@ const Login = () => {
         navigate('/app/dashboard');
       } catch (err) {
         const errorMessage = err.message || 'Login failed. Please try again.';
-        console.error('Login error:', errorMessage);
         setError(errorMessage);
       } finally {
         setLoading(false);
@@ -55,7 +54,6 @@ const Login = () => {
       }
       return false;
     } catch (error) {
-      console.error('handleSubmit error:', error);
       return false;
     }
   };

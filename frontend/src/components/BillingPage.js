@@ -151,14 +151,10 @@ const BillingPage = () => {
     setLoading(true);
     
     try {
-      console.log('Creating checkout session for:', selectedPlan, billingCycle);
-      
       const response = await api.post('/billing/subscribe', {
         plan_id: selectedPlan,
         billing_cycle: billingCycle
       });
-      
-      console.log('Checkout response:', response.data);
       
       if (response.data.checkout_url) {
         window.location.href = response.data.checkout_url;
@@ -166,7 +162,6 @@ const BillingPage = () => {
         throw new Error('No checkout URL returned');
       }
     } catch (error) {
-      console.error('Upgrade error:', error);
       setLoading(false);
       
       const errorMessage = error.response?.data?.detail || 

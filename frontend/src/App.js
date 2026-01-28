@@ -119,7 +119,6 @@ function AppLayout() {
       setStep(3);
     } catch (err) {
       setError('Failed to process resumes. Please try again.');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -149,7 +148,6 @@ function AppLayout() {
       setStep(4);
     } catch (err) {
       setError('Failed to schedule interviews. Please try again.');
-      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -180,7 +178,6 @@ function AppLayout() {
       setStep(5);
     } catch (err) {
       setError('Failed to send confirmations. Please try again.');
-      console.error(err);
     } finally {
       setLoading(false);
     }

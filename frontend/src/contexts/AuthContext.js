@@ -50,8 +50,6 @@ export const AuthProvider = ({ children }) => {
       
       return response.data.user;
     } catch (error) {
-      console.error('AuthContext login error:', error);
-      console.error('Error response:', error.response);
       const message = error.response?.data?.detail || 'Login failed';
       throw new Error(message);
     }
@@ -59,9 +57,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      console.log('Registering user:', userData);
       const response = await api.post('/auth/register', userData);
-      console.log('Register response:', response);
       
       localStorage.setItem('token', response.data.access_token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -71,7 +67,6 @@ export const AuthProvider = ({ children }) => {
       
       return response.data.user;
     } catch (error) {
-      console.error('Registration error:', error);
       const message = error.response?.data?.detail || error.message || 'Registration failed';
       throw new Error(message);
     }
@@ -81,7 +76,7 @@ export const AuthProvider = ({ children }) => {
     try {
       await api.post('/auth/logout');
     } catch (error) {
-      console.error('Logout error:', error);
+      // silent fail
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -112,3 +107,4 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+

@@ -61,9 +61,6 @@ const Signup = () => {
     setError('');
 
     try {
-      console.log('=== Starting registration ===');
-      console.log('Form data:', formData);
-      
       const result = await register({
         email: formData.email,
         password: formData.password,
@@ -71,16 +68,8 @@ const Signup = () => {
         company_name: formData.company_name || undefined,
         confirm_password: formData.confirmPassword
       });
-      console.log('Registration successful, navigating to dashboard...', result);
       navigate('/app/dashboard');
     } catch (err) {
-      console.error('=== Registration failed ===', err);
-      console.error('Error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-        code: err.code
-      });
       setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);

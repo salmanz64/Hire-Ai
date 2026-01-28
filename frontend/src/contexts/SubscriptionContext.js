@@ -73,7 +73,6 @@ export const SubscriptionProvider = ({ children }) => {
       })));
       setActiveJobCount(fetchedJobs.filter(job => job.is_active).length);
     } catch (error) {
-      console.error('Error fetching jobs:', error);
       setJobs([]);
       setActiveJobCount(0);
     } finally {
@@ -87,7 +86,6 @@ export const SubscriptionProvider = ({ children }) => {
       const usage = response.data;
       setResumesProcessedThisMonth(usage?.resumes_processed || 0);
     } catch (error) {
-      console.error('Error fetching usage:', error);
       setResumesProcessedThisMonth(0);
     }
   };
@@ -117,7 +115,6 @@ export const SubscriptionProvider = ({ children }) => {
       await fetchJobs();
       return response.data;
     } catch (error) {
-      console.error('Error creating job:', error);
       return false;
     }
   };
@@ -128,7 +125,7 @@ export const SubscriptionProvider = ({ children }) => {
       await api.patch(`/jobs/${jobId}`, { is_active: isActive });
       await fetchJobs();
     } catch (error) {
-      console.error('Error updating job status:', error);
+      // silent fail
     }
   };
 
@@ -184,3 +181,4 @@ export const SubscriptionProvider = ({ children }) => {
     </SubscriptionContext.Provider>
   );
 };
+

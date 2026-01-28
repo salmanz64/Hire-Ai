@@ -2,8 +2,6 @@ import axios from 'axios';
 
 const API_BASE_URL = 'https://hire-ai-6fgr.onrender.com/api/v1';
 
-console.log('API Base URL:', API_BASE_URL);
-
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
@@ -17,36 +15,27 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  console.log('API Request:', config.method.toUpperCase(), config.baseURL + config.url, config.data || config.params);
   return config;
 }, (error) => {
-  console.error('API Request Error:', error);
   return Promise.reject(error);
 });
 
-  api.interceptors.response.use(
-    (response) => {
-      console.log('API Response:', response.status, response.config.url, response.data);
-      return response;
-    },
-    (error) => {
-      if (error.code === 'ERR_NETWORK' || !error.response) {
-        console.error('API Network Error: Cannot connect to backend at', API_BASE_URL);
-        console.error('Make sure the backend is running on https://hire-ai-6fgr.onrender.com');
-      } else {
-        console.error('API Response Error:', error.message, error.response?.data);
-        if (error.response?.status === 401) {
-          const currentPath = window.location.pathname;
-          if (currentPath !== '/login' && currentPath !== '/signup') {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
-          }
-        }
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login' && currentPath !== '/signup') {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
       }
-      return Promise.reject(error);
     }
-  );
+    return Promise.reject(error);
+  }
+);
 
 export const processResumes = async (jobData, files) => {
   const formData = new FormData();
@@ -76,21 +65,13 @@ export const selectCandidates = async (jobId, candidateIds, candidates, jobTitle
     candidate_ids: candidateIds,
     candidates,
     job_title: jobTitle,
-  }, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
   });
 
   return response.data;
 };
 
 export const sendConfirmations = async (emailDrafts) => {
-  const response = await api.post('/send-confirmations', emailDrafts, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  const response = await api.post('/send-confirmations', emailDrafts);
   return response.data;
 };
 
@@ -107,3 +88,4 @@ export const getAvailableSlots = async (startDate, endDate, durationMinutes = 60
 };
 
 export default api;
+
